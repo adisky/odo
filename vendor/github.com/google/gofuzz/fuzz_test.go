@@ -364,7 +364,7 @@ func TestFuzz_noCustom(t *testing.T) {
 			inner.Str = testPhrase
 		},
 	)
-	c := Continue{f: f, Rand: f.r}
+	c := Continue{fc: &fuzzerContext{fuzzer: f}, Rand: f.r}
 
 	// Fuzzer.Fuzz()
 	obj1 := Outer{}

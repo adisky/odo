@@ -43,7 +43,7 @@ import:
   version: v1.8.0
 - package: github.com/hinshun/vt10x
   version: master
-- package: github.com/Netflix/go-expect
+- package: github.com/adisky/go-expect
   version: master
 - package: github.com/stretchr/testify
   version: v1.3.0
