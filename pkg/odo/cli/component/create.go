@@ -15,12 +15,14 @@ import (
 	"github.com/openshift/odo/pkg/component"
 	"github.com/openshift/odo/pkg/config"
 	"github.com/openshift/odo/pkg/devfile"
+	devfiledata "github.com/openshift/odo/pkg/devfile/parser/data"
 	"github.com/openshift/odo/pkg/envinfo"
 	"github.com/openshift/odo/pkg/kclient"
 	"github.com/openshift/odo/pkg/log"
 	"github.com/openshift/odo/pkg/machineoutput"
 	appCmd "github.com/openshift/odo/pkg/odo/cli/application"
 	catalogutil "github.com/openshift/odo/pkg/odo/cli/catalog/util"
+
 	"github.com/openshift/odo/pkg/odo/cli/component/ui"
 	projectCmd "github.com/openshift/odo/pkg/odo/cli/project"
 	commonui "github.com/openshift/odo/pkg/odo/cli/ui"
@@ -700,7 +702,10 @@ func (co *CreateOptions) downloadProject() error {
 	if err != nil {
 		return err
 	}
-	projects := devObj.Data.GetProjects()
+
+	dev := devObj.Data.(devfiledata.V100).Devfile
+	projects := dev.GetProjects()
+
 	nOfProjects := len(projects)
 	if nOfProjects == 0 {
 		return errors.Errorf("No project found in devfile component.")

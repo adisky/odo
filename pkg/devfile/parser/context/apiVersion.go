@@ -19,20 +19,43 @@ func (d *DevfileCtx) SetDevfileAPIVersion() error {
 		return errors.Wrapf(err, "failed to decode devfile json")
 	}
 
+	var schemaVersion interface{}
+	var okschema bool
 	// Get "apiVersion" value from the map
-	apiVersion, ok := r["apiVersion"]
-	if !ok {
-		return fmt.Errorf("apiVersion not present in devfile")
+	apiVersion, okapi := r["apiVersion"]
+	if !okapi {
+		// for devfile 2.0
+		schemaVersion, okschema = r["schemaVersion"]
+		if !okschema {
+			return fmt.Errorf("apiVersion or schemaVersion not present in devfile")
+		}
 	}
 
-	// apiVersion cannot be empty
-	if apiVersion.(string) == "" {
-		return fmt.Errorf("apiVersion in devfile cannot be empty")
+	/*
+		// apiVersion cannot be empty
+		if apiVersion.(string) == "" && schemaVersion.(string) == "" {
+
+			return fmt.Errorf("apiVersion or schemaVersion in devfile cannot be empty")
+		}*/
+
+	if okapi {
+		if apiVersion.(string) != "" {
+			d.apiVersion = apiVersion.(string)
+			glog.V(4).Infof("devfile apiVersion: '%s'", d.apiVersion)
+
+		}
+
 	}
 
-	// Successful
-	d.apiVersion = apiVersion.(string)
-	glog.V(4).Infof("devfile apiVersion: '%s'", d.apiVersion)
+	if okschema {
+
+		if schemaVersion.(string) != "" {
+			d.apiVersion = schemaVersion.(string)
+			glog.V(4).Infof("devfile schemaVersion: '%s'", d.apiVersion)
+
+		}
+	}
+
 	return nil
 }
 

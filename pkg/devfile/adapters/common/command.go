@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/openshift/odo/pkg/devfile/parser/data"
+	devfiledata "github.com/openshift/odo/pkg/devfile/parser/data"
 	"github.com/openshift/odo/pkg/devfile/parser/data/common"
 
 	"github.com/pkg/errors"
@@ -13,7 +14,11 @@ import (
 
 // GetCommand iterates through the devfile commands and returns the associated devfile command
 func getCommand(data data.DevfileData, commandName string, required bool) (supportedCommand common.DevfileCommand, err error) {
-	for _, command := range data.GetCommands() {
+
+	a := data.(devfiledata.V100)
+	dev := a.Devfile
+
+	for _, command := range dev.GetCommands() {
 		if command.Name == commandName {
 
 			// Get the supported actions

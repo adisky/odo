@@ -16,6 +16,7 @@ import (
 	"github.com/openshift/odo/pkg/devfile/adapters/common"
 	"github.com/openshift/odo/pkg/devfile/adapters/kubernetes"
 	devfileParser "github.com/openshift/odo/pkg/devfile/parser"
+	"github.com/openshift/odo/pkg/devfile/parser/data"
 	"github.com/openshift/odo/pkg/log"
 )
 
@@ -40,6 +41,11 @@ func (po *PushOptions) DevfilePush() (err error) {
 	if err != nil {
 		return err
 	}
+
+	parseddata := devObj.Data.(data.V200)
+	dev := parseddata.Devfile
+	fmt.Printf("\ndevfilename %s devfileversion %s", dev.Metadata.Name, dev.Metadata.Version)
+	fmt.Printf("\ndevfile commands %v", dev.Commands[0].Exec.Id)
 
 	componentName, err := getComponentName()
 	if err != nil {

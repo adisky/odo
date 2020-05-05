@@ -1,13 +1,14 @@
 package data
 
-import (
-	"github.com/openshift/odo/pkg/devfile/parser/data/common"
-)
-
 // DevfileData is an interface that defines functions for Devfile data operations
 type DevfileData interface {
-	GetComponents() []common.DevfileComponent
-	GetAliasedComponents() []common.DevfileComponent
-	GetProjects() []common.DevfileProject
-	GetCommands() []common.DevfileCommand
+	GetVersions() string
+}
+
+func (v V100) GetVersions() string {
+	return "v1.0.0"
+}
+
+func (v V200) GetVersions() string {
+	return "v2.0.0"
 }

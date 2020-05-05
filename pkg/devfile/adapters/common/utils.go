@@ -8,6 +8,7 @@ import (
 
 	devfileParser "github.com/openshift/odo/pkg/devfile/parser"
 	"github.com/openshift/odo/pkg/devfile/parser/data"
+	devfiledata "github.com/openshift/odo/pkg/devfile/parser/data"
 	"github.com/openshift/odo/pkg/devfile/parser/data/common"
 )
 
@@ -80,9 +81,11 @@ func GetBootstrapperImage() string {
 
 // GetSupportedComponents iterates through the components in the devfile and returns a list of odo supported components
 func GetSupportedComponents(data data.DevfileData) []common.DevfileComponent {
+	a := data.(devfiledata.V100)
+	dev := a.Devfile
 	var components []common.DevfileComponent
 	// Only components with aliases are considered because without an alias commands cannot reference them
-	for _, comp := range data.GetAliasedComponents() {
+	for _, comp := range dev.GetAliasedComponents() {
 		if isComponentSupported(comp) {
 			glog.V(3).Infof("Found component \"%v\" with alias \"%v\"\n", comp.Type, *comp.Alias)
 			components = append(components, comp)

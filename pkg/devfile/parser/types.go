@@ -20,3 +20,14 @@ type DevfileObj struct {
 	// Data has the devfile data
 	Data data.DevfileData
 }
+
+/*
+type DevfileObj struct {
+
+	// Ctx has devfile context info
+	Ctx devfileCtx.DevfileCtx
+
+	// Data has the devfile data
+	wrapper data.DevfileData
+}
+*/

@@ -8,7 +8,9 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/openshift/odo/pkg/devfile/adapters/common"
+	devfiledata "github.com/openshift/odo/pkg/devfile/parser/data"
 	versionsCommon "github.com/openshift/odo/pkg/devfile/parser/data/common"
+
 	"github.com/openshift/odo/pkg/exec"
 	"github.com/openshift/odo/pkg/kclient"
 	"github.com/openshift/odo/pkg/log"
@@ -141,7 +143,10 @@ func (a Adapter) pushLocal(path string, files []string, delFiles []string, isFor
 	defer s.End(false)
 
 	// If there's only one project defined in the devfile, sync to `/projects/project-name`, otherwise sync to /projects
-	syncFolder, err := getSyncFolder(a.Devfile.Data.GetProjects())
+	data := a.Devfile.Data
+	dev := data.(devfiledata.V100).Devfile
+
+	syncFolder, err := getSyncFolder(dev.GetProjects())
 	if err != nil {
 		return errors.Wrapf(err, "unable to sync the files to the component")
 	}
