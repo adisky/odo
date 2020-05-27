@@ -27,9 +27,11 @@ func TestValidateComponents(t *testing.T) {
 
 		components := []common.DevfileComponent{
 			{
+
 				Container: &common.Container{
 					Name: "container",
 				},
+
 				Type: common.ContainerComponentType,
 			},
 		}
