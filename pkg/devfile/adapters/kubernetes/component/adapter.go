@@ -280,7 +280,17 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 	}
 
 	objectMeta := kclient.CreateObjectMeta(componentName, a.Client.Namespace, labels, nil)
-	podTemplateSpec := kclient.GeneratePodTemplateSpec(objectMeta, containers)
+
+	sourcePvcName := fmt.Sprintf("%s-%s", kclient.OdoSourceVolume, componentName)
+	podTemplateSpec := kclient.GeneratePodTemplateSpec(objectMeta, containers, sourcePvcName)
+
+	sourcePvc := common.Storage{
+		Name: sourcePvcName,
+		Volume: common.DevfileVolume{
+			Name: kclient.OdoSourceVolume,
+			Size: "2Gi",
+		},
+	}
 
 	kclient.AddBootstrapSupervisordInitContainer(podTemplateSpec)
 
@@ -345,10 +355,11 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 		}
 	}
 
-	err = storage.DeleteOldPVCs(&a.Client, componentName, processedVolumes)
+	// processedVolumes[sourcePvcName] = true
+	/*err = storage.DeleteOldPVCs(&a.Client, componentName, processedVolumes)
 	if err != nil {
 		return err
-	}
+	}*/
 
 	// Add PVC and Volume Mounts to the podTemplateSpec
 	err = kclient.AddPVCAndVolumeMount(podTemplateSpec, volumeNameToPVCName, containerNameToVolumes)
@@ -442,6 +453,8 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 		}
 
 	}
+
+	uniqueStorages = append(uniqueStorages, sourcePvc)
 
 	// Get the storage adapter and create the volumes if it does not exist
 	stoAdapter := storage.New(a.AdapterContext, a.Client)

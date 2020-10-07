@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+
 	"github.com/openshift/odo/pkg/storage/labels"
 	"github.com/pkg/errors"
 	"k8s.io/klog"
@@ -125,6 +126,8 @@ func DeleteOldPVCs(Client *kclient.Client, componentName string, processedVolume
 		if ok && !processedVolumes[storageName] {
 			// the pvc is not in the processedVolumes map
 			// thus deleting those PVCs
+			klog.V(2).Infof("Deleting PVC %v", pvc.GetName())
+
 			err := Client.DeletePVC(pvc.GetName())
 			if err != nil {
 				return err
