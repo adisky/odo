@@ -281,38 +281,13 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 
 	objectMeta := kclient.CreateObjectMeta(componentName, a.Client.Namespace, labels, nil)
 
-	sourcePvcName := fmt.Sprintf("%s-%s", kclient.OdoSourceVolume, componentName)
-	podTemplateSpec := kclient.GeneratePodTemplateSpec(objectMeta, containers, sourcePvcName)
+	supervisordInitContainer := kclient.AddBootstrapSupervisordInitContainer()
 
-	sourcePvc := common.Storage{
-		Name: sourcePvcName,
-		Volume: common.DevfileVolume{
-			Name: kclient.OdoSourceVolume,
-			Size: "2Gi",
-		},
-	}
+	initContainers := utils.GetPreStartInitContainers(a.Devfile, containers)
 
-	kclient.AddBootstrapSupervisordInitContainer(podTemplateSpec)
+	initContainers = append(initContainers, supervisordInitContainer)
 
-	// if there are preStart events, add them as init containers to the podTemplateSpec
-	preStartEvents := a.Devfile.Data.GetEvents().PreStart
-	if len(preStartEvents) > 0 {
-		var eventCommands []string
-		commandsMap := a.Devfile.Data.GetCommands()
-		containersMap := utils.GetContainersMap(containers)
-
-		for _, event := range preStartEvents {
-			eventSubCommands := common.GetCommandsFromEvent(commandsMap, strings.ToLower(event))
-			eventCommands = append(eventCommands, eventSubCommands...)
-		}
-
-		klog.V(4).Infof("PreStart event commands are: %v", strings.Join(eventCommands, ","))
-		utils.AddPreStartEventInitContainer(podTemplateSpec, commandsMap, eventCommands, containersMap)
-		if len(eventCommands) > 0 {
-			log.Successf("PreStart commands have been added to the component: %s", strings.Join(eventCommands, ","))
-		}
-	}
-
+	//--------------------------------------------------------------------
 	containerNameToVolumes := common.GetVolumes(a.Devfile)
 
 	var uniqueStorages []common.Storage
@@ -355,17 +330,41 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 		}
 	}
 
-	// processedVolumes[sourcePvcName] = true
-	/*err = storage.DeleteOldPVCs(&a.Client, componentName, processedVolumes)
-	if err != nil {
-		return err
-	}*/
+	// TODO(adi): sort this out
+	sourcePvcName := fmt.Sprintf("%s-%s", kclient.OdoSourceVolume, componentName)
 
-	// Add PVC and Volume Mounts to the podTemplateSpec
-	err = kclient.AddPVCAndVolumeMount(podTemplateSpec, volumeNameToPVCName, containerNameToVolumes)
+	sourcePvc := common.Storage{
+		Name: sourcePvcName,
+		Volume: common.DevfileVolume{
+			Name: kclient.OdoSourceVolume,
+			Size: "2Gi",
+		},
+	}
+
+	processedVolumes[kclient.OdoSourceVolume] = true
+	err = storage.DeleteOldPVCs(&a.Client, componentName, processedVolumes)
 	if err != nil {
 		return err
 	}
+
+	// Get the storage adapter and create the volumes if it does not exist
+	stoAdapter := storage.New(a.AdapterContext, a.Client)
+	err = stoAdapter.Create(uniqueStorages)
+	if err != nil {
+		return err
+	}
+
+	// Get volumes from devfile to be added in pod template
+	volumes := kclient.GetVolumes(volumeNameToPVCName)
+
+	// Get odo specific volumes to be added in pod template
+	volumes = append(volumes, kclient.GetSourceVolume(true, componentName), kclient.GetSupervisordVolume())
+
+	uniqueStorages = append(uniqueStorages, sourcePvc)
+
+	//"-----------------------------------------------------------------------------------"
+
+	podTemplateSpec := kclient.GeneratePodTemplateSpec(objectMeta, containers, initContainers, volumes)
 
 	deploymentSpec := kclient.GenerateDeploymentSpec(*podTemplateSpec, map[string]string{
 		"component": componentName,
@@ -374,22 +373,17 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 	var containerPorts []corev1.ContainerPort
 
 	for _, c := range deploymentSpec.Template.Spec.Containers {
-		// No need to check
-		if reflect.DeepEqual(a.Devfile.Ctx.GetApiVersion(), "1.0.0") {
-			containerPorts = append(containerPorts, c.Ports...)
-		} else {
-			for _, port := range c.Ports {
-				portExist := false
-				for _, entry := range containerPorts {
-					if entry.ContainerPort == port.ContainerPort {
-						portExist = true
-						break
-					}
+		for _, port := range c.Ports {
+			portExist := false
+			for _, entry := range containerPorts {
+				if entry.ContainerPort == port.ContainerPort {
+					portExist = true
+					break
 				}
-				// if Exposure == none, should not create a service for that port
-				if !portExist && portExposureMap[port.ContainerPort] != versionsCommon.None {
-					containerPorts = append(containerPorts, port)
-				}
+			}
+			// if Exposure == none, should not create a service for that port
+			if !portExist && portExposureMap[port.ContainerPort] != versionsCommon.None {
+				containerPorts = append(containerPorts, port)
 			}
 		}
 	}
@@ -452,15 +446,6 @@ func (a Adapter) createOrUpdateComponent(componentExists bool, ei envinfo.EnvSpe
 			klog.V(2).Infof("Successfully created Service for component %s", componentName)
 		}
 
-	}
-
-	uniqueStorages = append(uniqueStorages, sourcePvc)
-
-	// Get the storage adapter and create the volumes if it does not exist
-	stoAdapter := storage.New(a.AdapterContext, a.Client)
-	err = stoAdapter.Create(uniqueStorages)
-	if err != nil {
-		return err
 	}
 
 	return nil

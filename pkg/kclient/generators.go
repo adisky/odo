@@ -1,7 +1,8 @@
 package kclient
 
 import (
-	"github.com/openshift/odo/pkg/devfile/adapters/common"
+	"fmt"
+
 	"k8s.io/client-go/rest"
 
 	// api resource types
@@ -15,6 +16,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/openshift/odo/pkg/devfile/adapters/common"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -56,31 +58,45 @@ func GenerateContainer(name, image string, isPrivileged bool, command, args []st
 }
 
 // GeneratePodTemplateSpec creates a pod template spec that can be used to create a deployment spec
-func GeneratePodTemplateSpec(objectMeta metav1.ObjectMeta, containers []corev1.Container, sourcePvcName string) *corev1.PodTemplateSpec {
-	podTemplateSpec := &corev1.PodTemplateSpec{
+func GeneratePodTemplateSpec(objectMeta metav1.ObjectMeta, containers []corev1.Container, initContainers []corev1.Container, volumes []corev1.Volume) *corev1.PodTemplateSpec {
+	return &corev1.PodTemplateSpec{
 		ObjectMeta: objectMeta,
 		Spec: corev1.PodSpec{
-			Containers: containers,
-			Volumes: []corev1.Volume{
-				{
-					Name: OdoSourceVolume,
-					VolumeSource: corev1.VolumeSource{
-						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: sourcePvcName},
-					},
-				},
-				{
-					// Create a volume that will be shared betwen InitContainer and the applicationContainer
-					// in order to pass over the SupervisorD binary
-					Name: common.SupervisordVolumeName,
-					VolumeSource: corev1.VolumeSource{
-						EmptyDir: &corev1.EmptyDirVolumeSource{},
-					},
-				},
-			},
+			Containers:     containers,
+			Volumes:        volumes,
+			InitContainers: initContainers,
 		},
 	}
 
-	return podTemplateSpec
+}
+
+func GetSourceVolume(persistent bool, componentName string) corev1.Volume {
+	if persistent {
+		sourcePvcName := fmt.Sprintf("%s-%s", OdoSourceVolume, componentName)
+
+		return corev1.Volume{
+			Name: OdoSourceVolume,
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{ClaimName: sourcePvcName},
+			},
+		}
+	}
+
+	return corev1.Volume{
+		Name: OdoSourceVolume,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func GetSupervisordVolume() corev1.Volume {
+	return corev1.Volume{
+		Name: common.SupervisordVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
 }
 
 // GenerateDeploymentSpec creates a deployment spec
