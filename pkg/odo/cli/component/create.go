@@ -935,6 +935,7 @@ func (co *CreateOptions) downloadStarterProject(devObj parser.DevfileObj, projec
 		}
 
 		remoteName, remoteUrl, revision, err := projectSource.GetDefaultSource()
+		fmt.Printf("revision %v", revision)
 		if err != nil {
 			return errors.Wrapf(err, "unable to get default project source for starter project %s", starterProject.Name)
 		}
@@ -943,13 +944,13 @@ func (co *CreateOptions) downloadStarterProject(devObj parser.DevfileObj, projec
 			log.Warning("Specifying 'revision' in 'checkoutFrom' is not yet supported in odo.")
 		}
 
-		downloadSpinner := log.Spinnerf("Downloading starter project %s from %s", starterProject.Name, remoteUrl)
-		defer downloadSpinner.End(false)
+		refName := plumbing.NewBranchReferenceName(revision)
 
 		cloneOptions := &git.CloneOptions{
-			URL:           remoteUrl,
-			RemoteName:    remoteName,
-			ReferenceName: plumbing.ReferenceName(revision),
+			URL:        remoteUrl,
+			RemoteName: remoteName,
+			//ReferenceName: plumbing.ReferenceName(revision),
+			ReferenceName: refName,
 			SingleBranch:  true,
 			// we don't need history for starter projects
 			Depth: 1,
@@ -971,10 +972,24 @@ func (co *CreateOptions) downloadStarterProject(devObj parser.DevfileObj, projec
 			}
 		}
 		_, err = git.PlainClone(path, false, cloneOptions)
+
 		if err != nil {
-			return err
+
+			if _, ok := err.(git.NoMatchingRefSpecError); !ok {
+				return err
+			}
+
+			// try again
+			cloneOptions.ReferenceName = plumbing.NewTagReferenceName(revision)
+			_ = os.RemoveAll(".git/")
+			_, err = git.PlainClone(path, false, cloneOptions)
+			if err != nil {
+				return err
+			}
 		}
 
+		downloadSpinner := log.Spinnerf("Downloading starter project %s from %s", starterProject.Name, remoteUrl)
+		defer downloadSpinner.End(false)
 		// we don't want to download project be a git repo
 		err = os.RemoveAll(filepath.Join(path, ".git"))
 		if err != nil {
